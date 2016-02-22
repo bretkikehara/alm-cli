@@ -1,0 +1,29 @@
+#!/usr/bin/env node
+'use strict';
+
+process.title = 'alm';
+
+var argv = require('yargs').argv,
+    alm = require(__dirname + '/../src/alm.js');
+
+var localizationCfg = {
+      basePath: argv.basePath || 'languages',
+      workingPath: argv.path || process.cwd(),
+      fileExtension: argv.ext || '.lang.json',
+    },
+    tokenCfg = {
+      'host': argv.host || 'http://localhost:5000',
+      'key': argv.key,
+      'aws_access_key_id': argv.id,
+      'aws_secret_access_key': argv.access_key,
+      'region_name': argv.region,
+    };
+
+// define args
+argv.version = argv.version || argv.v;
+
+if (argv.version) {
+  alm.version();
+} else {
+  alm.exec(localizationCfg, tokenCfg);
+}

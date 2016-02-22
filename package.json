@@ -1,0 +1,25 @@
+{
+  "name": "alm-cli",
+  "version": "1.0.0",
+  "description": "Anuglar Localization Manager CLI tool",
+  "bin": {
+    "alm": "bin/alm"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Bret K. Ikehara <bret.k.ikehara@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "colors": "^1.1.2",
+    "glob": "^7.0.0",
+    "request": "^2.69.0",
+    "yargs": "^4.1.0"
+  },
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-jshint": "^2.0.0",
+    "gulp-load-plugins": "^1.2.0",
+    "jshint": "^2.9.1"
+  }
+}
