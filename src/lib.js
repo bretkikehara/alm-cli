@@ -1,46 +1,42 @@
-var request = require('request'),
+var argv = require('yargs').argv,
+    request = require('request'),
     qs = require('querystring'),
     glob = require('glob');
 
-function retrieveToken (params) {
-  return new Promise(function (resolve, reject) {
-    try {
-      if (!params || !params.key || !params.aws_access_key_id || !params.aws_secret_access_key || !params.region_name) {
-        throw new Error('define params to encrypt token');
-      }
-
-      request(params.host + '/auth/token?' + qs.stringify(params), function (error, response, body) {
-        if (error) {
-          reject(error);
-        } else {
-          resolve({
-            'error': error,
-            'response': response,
-            'body': body,
-          });
-        }
-      });
-    } catch(e) {
-      reject(e);
-    }
-  });
+function getHost () {
+  return argv.host || 'http://localhost:5000'
 }
-exports.retrieveToken = retrieveToken;
+
+function retrieveToken (tokenCfg) {
+  return new Promise(function (resolve, reject) {
+    request(getHost() + '/auth/token?' + qs.stringify(tokenCfg), function (error, response, body) {
+      if (error) {
+        reject({
+          'error': error,
+          'response': response,
+        });
+      } else {
+        resolve({
+          'response': response,
+          'body': body,
+        });
+      }
+    });
+  });
+};
 
 // options is optional
-function getConfig (cfg) {
+function gatherLocalizationBundles (localizationCfg) {
   // TODO FIX VALIDATION
-  cfg.workingPath = cfg.workingPath + cfg.basePath;
   return new Promise(function (resolve, reject) {
     var languages = {},
         bundles = {};
-    glob("**/*" + cfg.fileExtension, {
-      cwd: cfg.workingPath,
+    glob("**/*" + localizationCfg.fileExtension, {
+      cwd: localizationCfg.workingPath + '/' + localizationCfg.basePath,
     }, function (er, files) {
       if (er) {
         return reject(er);
       }
-
       files.forEach(function (name) {
         var data = name.split('/');
         languages[data[0]] = true;
@@ -48,12 +44,74 @@ function getConfig (cfg) {
       });
 
       resolve({
-        'basePath': cfg.basePath,
+        'basePath': localizationCfg.basePath,
         'languages': Object.keys(languages),
-        'bundles': Object.keys(bundles),
+        'bundles': Object.keys(bundles).map(function (bundle) {
+          return bundle.substring(0, bundle.indexOf(localizationCfg.fileExtension))
+        }),
       });
     });
   });
-}
-exports.getConfig = getConfig;
+};
 
+exports.generateConfig = function (localizationCfg, tokenCfg) {
+  return gatherLocalizationBundles(localizationCfg).then(function (localizationCfg) {
+    return retrieveToken(tokenCfg).then(function (resp) {
+      if (resp.error) {
+        return Promise.reject(new Error('response error'));
+      }
+      localizationCfg.token = JSON.parse(resp.body).token;
+      return localizationCfg;
+    }).catch(function (o) {
+      console.error(colors.red(o.error.message), o.response);
+      localizationCfg.token = 'request error';
+      return localizationCfg;
+    });
+  });
+};
+
+exports.uploadConfig = function (bucket, secret, localizationCfg) {
+  return new Promise(function (resolve, reject) {
+    request.post(getHost() + '/upload/' + bucket + '?' + qs.stringify({
+      'secret': secret,
+      'token': localizationCfg.token,
+    }), {
+      body: JSON.stringify(localizationCfg)
+    }, function (error, response, body) {
+      if (error) {
+        reject({
+          'error': error,
+          'response': response,
+        });
+      } else {
+        resolve({
+          'response': response,
+          'body': body,
+        });
+      }
+    });
+  });
+};
+
+exports.uploadLocales = function (bucket, secret, localizationCfg) {
+  return new Promise(function (resolve, reject) {
+    request.post(getHost() + '/upload/' + bucket + '?' + qs.stringify({
+      'secret': secret,
+      'token': localizationCfg.token,
+    }), {
+      body: JSON.stringify(localizationCfg)
+    }, function (error, response, body) {
+      if (error) {
+        reject({
+          'error': error,
+          'response': response,
+        });
+      } else {
+        resolve({
+          'response': response,
+          'body': body,
+        });
+      }
+    });
+  });
+};

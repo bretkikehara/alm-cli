@@ -2,20 +2,18 @@ var colors = require('colors/safe'),
     fs = require('fs'),
     lib = require('./lib.js');
 
-exports.exec = function (localizationCfg, tokenCfg) {
-  lib.getConfig(localizationCfg).then(function (cfg) {
-    lib.retrieveToken(tokenCfg).then(function (resp) {
-      if (resp.error) {
-        return Promise.reject(new Error('response error'));
-      }
-      cfg.token = JSON.parse(resp.body).token;
-      return cfg;
-    }).catch(function (e) {
-      console.error(colors.red(e.message));
-      cfg.token = 'request error';
-      return cfg;
-    }).then(function () {
-      console.log('ALM Config:\n', cfg);
+exports.config = function (localizationCfg, tokenCfg) {
+  return lib.generateConfig(localizationCfg, tokenCfg).then(function (cfg) {
+    console.log('ALM Config:\n', cfg);
+  });
+};
+
+exports.upload = function (localizationCfg, tokenCfg, bucket) {
+  return lib.generateConfig(localizationCfg, tokenCfg).then(function (localizationCfg) {
+    return lib.uploadConfig(bucket, tokenCfg.secret, localizationCfg).then(function (o) {
+      console.log(o.body);
+    }).catch(function (o) {
+      console.error(o.error.message);
     });
   });
 };
