@@ -135,6 +135,33 @@ exports.config = function (localizationCfg, tokenCfg) {
   });
 };
 
+exports.readConfig = function (path) {
+  return new Promise(function (resolve, reject) {
+    if (!path) {
+      return reject();
+    }
+    fs.readFile(path, function (err, data) {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(JSON.parse(data));
+      }
+    });
+  });
+};
+
+exports.writeConfig = function (path, cfg) {
+  return new Promise(function (resolve, reject) {
+    fs.writeFile(path, JSON.stringify(cfg), function (err) {
+      if (err) {
+        reject(err);
+      } else {
+        resolve();
+      }
+    });
+  });
+};
+
 exports.uploadConfig = function (bucket, secret, localizationCfg) {
   return new Promise(function (resolve, reject) {
     request.post(getHost() + '/upload/' + bucket + '?' + qs.stringify({
