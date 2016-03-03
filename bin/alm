@@ -4,6 +4,7 @@
 process.title = 'alm';
 
 var argv = require('yargs').argv,
+    colors = require('colors/safe'),
     alm = require(__dirname + '/../src/alm.js');
 
 var localizationCfg = {
@@ -21,8 +22,46 @@ var localizationCfg = {
 // define args
 argv.version = argv.version || argv.v;
 
+function showHelp () {
+  console.log([
+    '\nUsage: alm [args]\n\n',
+    'alm --version\n',
+    'alm --secret skx982ya --id akdi38nAwQ --key 28hsadfjkl --region us-east-1 --basePath languages --ext .lang.json --path ./\n',
+  ].join(''));
+}
+
+var help = false;
+
 if (argv.version) {
   alm.version();
 } else {
-  alm.upload(localizationCfg, tokenCfg, argv.upload);
+  if (!tokenCfg.secret) {
+    console.warn(colors.red('Missing user secret'));
+    help = true;
+  }
+
+  if (!tokenCfg.aws_access_key_id) {
+    console.warn(colors.red('Missing AWS_ACCESS_KEY_ID'));
+    help = true;
+  }
+
+  if (!tokenCfg.aws_secret_access_key) {
+    console.warn(colors.red('Missing AWS_SECRET_ACCESS_KEY'));
+    help = true;
+  }
+
+  if (!tokenCfg.region_name) {
+    console.warn(colors.red('Missing AWS region'));
+    help = true;
+  }
+
+  if (help) {
+    showHelp();
+  }
+
+  if (argv.upload) {
+    alm.upload(localizationCfg, tokenCfg, argv.upload);
+  } else {
+    alm.config(localizationCfg, tokenCfg);
+  }
 }
