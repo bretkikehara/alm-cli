@@ -3,16 +3,19 @@
 
 process.title = 'alm';
 
-var argv = require('yargs')
-    .usage('Usage: $0 <command> [options]')
-    .demand(1)
-    .command('config', 'Generate the config file', {
+var DEFAULT_ARGS = {
       'secret': {
         alias: 's',
         default: '',
         describe: 'User defined secret',
         type: 'string'
       },
+    },
+    argv = require('yargs')
+    .usage('Usage: $0 <command> [options]')
+    .demand(1)
+    .command('config', 'Generate the config file', {
+      'secret': DEFAULT_ARGS.secret,
       'id': {
         alias: 'i',
         default: process.env.AWS_ACCESS_KEY_ID,
@@ -51,30 +54,33 @@ var argv = require('yargs')
       },
       'file': {
         alias: 'f',
-        default: [process.cwd(), 'config.js'].join('/'),
         describe: 'Save config to a file',
         type: 'string'
       },
-      'upload': {
-        alias: 'u',
-        default: false,
-        describe: 'Upload the config?',
-        type: 'boolean'
+      'bucket': {
+        alias: 'bu',
+        describe: 'The AWS bucket',
+        type: 'string'
       }
     })
     .command('upload', 'Upload the config file to AWS', {
+      'secret': DEFAULT_ARGS.secret,
       'file': {
         alias: 'f',
-        default: [process.cwd(), 'config.js'].join('/'),
         describe: 'The generated ALM config file to upload',
+        type: 'string'
+      },
+      'bucket': {
+        alias: 'bu',
+        describe: 'The AWS bucket',
         type: 'string'
       }
     })
     .command('version', 'Show the CLI version')
     .argv,
     command = argv._[0],
-    colors = require('colors/safe'),
-    lib = require(__dirname + '/../src/lib.js');
+    lib = require(__dirname + '/../src/lib.js'),
+    log = lib.log;
 
 var localizationCfg = {
       basePath: argv.basePath,
@@ -92,8 +98,44 @@ if (command === 'version') {
   lib.version();
 } else if (command === 'config') {
   lib.config(localizationCfg, tokenCfg).then(function (cfg) {
-    console.log(cfg);
+    if (argv.bu) {
+      if (tokenCfg) {
+        // TODO FIX ME
+        log.err('FIX UPLOAD');
+      } else {
+        log.err('Failed to upload config. Missing token.');
+      }
+    } else if (argv.f) {
+      lib.writeConfig(argv.f, cfg).then(function () {
+        log.suc('Saved config to', argv.f);
+      }).catch(function (err) {
+        log.err('Failed to write config', err);
+      });
+    } else {
+      log.info('\nALM Config\n------------------------------------------------------------');
+      console.log(cfg);
+    }
   });
 } else if (command === 'upload') {
-  lib.upload(localizationCfg, tokenCfg, argv.upload);
+  log.info('Uploading file: ', argv.f);
+  lib.readConfig(argv.f).then(function (localizationCfg) {
+    if (!argv.s) {
+      return Promise.reject('Define user secret to decrypt token!');
+    }
+    if (!localizationCfg.token) {
+      return Promise.reject('Token is missing from config file!');
+    }
+    return lib.upload(localizationCfg, argv.s, argv.bu);
+  }, function (err) {
+    if (err) {
+      log.err('Failed to read config');
+      log.err(err);
+    } else {
+      log.err('Define config file to read!');
+    }
+  }).then(function () {
+    log.info('Uploaded file', argv.f);
+  }, function (err) {
+    log.err(err);
+  });
 }
