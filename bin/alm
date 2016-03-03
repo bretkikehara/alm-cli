@@ -3,65 +3,97 @@
 
 process.title = 'alm';
 
-var argv = require('yargs').argv,
+var argv = require('yargs')
+    .usage('Usage: $0 <command> [options]')
+    .demand(1)
+    .command('config', 'Generate the config file', {
+      'secret': {
+        alias: 's',
+        default: '',
+        describe: 'User defined secret',
+        type: 'string'
+      },
+      'id': {
+        alias: 'i',
+        default: process.env.AWS_ACCESS_KEY_ID,
+        describe: 'The AWS_ACCESS_KEY_ID value',
+        type: 'string'
+      },
+      'key': {
+        alias: 'k',
+        default: process.env.AWS_SECRET_ACCESS_KEY,
+        describe: 'The AWS_SECRET_ACCESS_KEY value',
+        type: 'string'
+      },
+      'region': {
+        alias: 'r',
+        default: process.env.AWS_REGION,
+        describe: 'The localization file\'s AWS bucket region',
+        type: 'string'
+      },
+      'path': {
+        alias: 'p',
+        default: process.cwd(),
+        describe: 'Local directory used to generate the config',
+        type: 'string'
+      },
+      'basePath': {
+        alias: 'b',
+        default: 'languages',
+        describe: 'The folder where the locale bundles are stored',
+        type: 'string'
+      },
+      'ext': {
+        alias: 'e',
+        default: '.lang.json',
+        describe: 'The bundle file extension',
+        type: 'string'
+      },
+      'file': {
+        alias: 'f',
+        default: [process.cwd(), 'config.js'].join('/'),
+        describe: 'Save config to a file',
+        type: 'string'
+      },
+      'upload': {
+        alias: 'u',
+        default: false,
+        describe: 'Upload the config?',
+        type: 'boolean'
+      }
+    })
+    .command('upload', 'Upload the config file to AWS', {
+      'file': {
+        alias: 'f',
+        default: [process.cwd(), 'config.js'].join('/'),
+        describe: 'The generated ALM config file to upload',
+        type: 'string'
+      }
+    })
+    .command('version', 'Show the CLI version')
+    .argv,
+    command = argv._[0],
     colors = require('colors/safe'),
-    alm = require(__dirname + '/../src/alm.js');
+    lib = require(__dirname + '/../src/lib.js');
 
 var localizationCfg = {
-      basePath: argv.basePath || 'languages',
-      workingPath: argv.path || process.cwd(),
-      fileExtension: argv.ext || '.lang.json',
+      basePath: argv.basePath,
+      workingPath: argv.path,
+      fileExtension: argv.ext,
     },
-    tokenCfg = {
+    tokenCfg = argv.secret && argv.id && argv.key && argv.region ? {
       'secret': argv.secret,
-      'aws_access_key_id': argv.id || process.env.AWS_ACCESS_KEY_ID,
-      'aws_secret_access_key': argv.key || process.env.AWS_SECRET_ACCESS_KEY,
-      'region_name': argv.region || process.env.AWS_REGION,
-    };
+      'aws_access_key_id': argv.id,
+      'aws_secret_access_key': argv.key,
+      'region_name': argv.region,
+    } : undefined;
 
-// define args
-argv.version = argv.version || argv.v;
-
-function showHelp () {
-  console.log([
-    '\nUsage: alm [args]\n\n',
-    'alm --version\n',
-    'alm --secret skx982ya --id akdi38nAwQ --key 28hsadfjkl --region us-east-1 --basePath languages --ext .lang.json --path ./\n',
-  ].join(''));
-}
-
-var help = false;
-
-if (argv.version) {
-  alm.version();
-} else {
-  if (!tokenCfg.secret) {
-    console.warn(colors.red('Missing user secret'));
-    help = true;
-  }
-
-  if (!tokenCfg.aws_access_key_id) {
-    console.warn(colors.red('Missing AWS_ACCESS_KEY_ID'));
-    help = true;
-  }
-
-  if (!tokenCfg.aws_secret_access_key) {
-    console.warn(colors.red('Missing AWS_SECRET_ACCESS_KEY'));
-    help = true;
-  }
-
-  if (!tokenCfg.region_name) {
-    console.warn(colors.red('Missing AWS region'));
-    help = true;
-  }
-
-  if (help) {
-    showHelp();
-  }
-
-  if (argv.upload) {
-    alm.upload(localizationCfg, tokenCfg, argv.upload);
-  } else {
-    alm.config(localizationCfg, tokenCfg);
-  }
+if (command === 'version') {
+  lib.version();
+} else if (command === 'config') {
+  lib.config(localizationCfg, tokenCfg).then(function (cfg) {
+    console.log(cfg);
+  });
+} else if (command === 'upload') {
+  lib.upload(localizationCfg, tokenCfg, argv.upload);
 }
