@@ -2,7 +2,8 @@ var argv = require('yargs').argv,
     fs = require('fs'),
     request = require('request'),
     qs = require('querystring'),
-    glob = require('glob');
+    glob = require('glob'),
+    colors = require('colors');
 
 function getHost () {
   return argv.host || 'http://localhost:5000'
@@ -31,12 +32,26 @@ function upload (url, secret, token, body) {
   });
 }
 
+var log = {
+  suc: function () {
+    console.error(colors.green([].splice.call(arguments, 0).join(' ')));
+  },
+  err: function () {
+    console.error(colors.red([].splice.call(arguments, 0).join(' ')));
+  },
+  info: function () {
+    var msg = Array.prototype.slice(arguments, 1).join(' ');
+    console.log(msg);
+  }
+};
+exports.log = log;
+
 exports.version = function () {
   fs.readFile(__dirname + '/../package.json', 'utf8', function (err, data) {
     if (err) {
-      console.error(colors.red(err));
+      log.err(err);
     }
-    console.log('alm-cli version:', JSON.parse(data).version);
+    log.info('alm-cli version:', JSON.parse(data).version);
   });
 };
 
@@ -113,7 +128,7 @@ exports.config = function (localizationCfg, tokenCfg) {
       cfg.token = JSON.parse(resp.body).token;
       return cfg;
     }).catch(function (o) {
-      console.error(colors.red(o.error.message), o.response);
+      log.err(o.error.message), o.response;
       cfg.token = 'request error';
       return cfg;
     });
