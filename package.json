@@ -1,5 +1,5 @@
 {
-  "name": "alm-cli",
+  "name": "angular-localization-manager-cli",
   "version": "1.0.0",
   "description": "Anuglar Localization Manager CLI tool",
   "bin": {
