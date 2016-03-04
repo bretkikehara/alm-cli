@@ -14,7 +14,7 @@ var argv = require('yargs')
     colors = require('colors'),
     log = {
       _msg: function (args) {
-        return [].splice.call(args, 0).join(' ')
+        return [].splice.call(args, 0).join(' ');
       },
       suc: function () {
         console.error(colors.green(log._msg(arguments)));
@@ -35,7 +35,7 @@ var argv = require('yargs')
 exports.log = log;
 
 function getHost () {
-  return argv.host || 'http://localhost:5000'
+  return argv.host || 'http://localhost:5000';
 }
 
 function putObject (url, params, body) {
@@ -114,7 +114,7 @@ exports.gatherLocalizationBundles = function (localizationCfg) {
         'languages': Object.keys(languages),
         'fileExtension': localizationCfg.fileExtension,
         'bundles': Object.keys(bundles).map(function (bundle) {
-          return bundle.substring(0, bundle.indexOf(localizationCfg.fileExtension))
+          return bundle.substring(0, bundle.indexOf(localizationCfg.fileExtension));
         }),
       });
     });
@@ -134,7 +134,7 @@ exports.readLocalizationBundle = function (path) {
       }
     });
   });
-}
+};
 
 exports.config = function (localizationCfg, tokenCfg) {
   return exports.gatherLocalizationBundles(localizationCfg).then(function (cfg) {
@@ -149,7 +149,7 @@ exports.config = function (localizationCfg, tokenCfg) {
       cfg.token = JSON.parse(resp.body).token;
       return cfg;
     }, function (o) {
-      log.err(o.error.message)
+      log.err(o.error.message);
       log.err(o.response);
       cfg.token = 'request error';
       return cfg;
