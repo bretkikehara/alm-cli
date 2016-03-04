@@ -10,6 +10,17 @@ var DEFAULT_ARGS = {
         describe: 'User defined secret',
         type: 'string'
       },
+      'bucket': {
+        alias: 'bu',
+        describe: 'The AWS bucket',
+        type: 'string'
+      },
+      'path': {
+        alias: 'p',
+        default: process.cwd(),
+        describe: 'Local directory used to generate the config',
+        type: 'string'
+      },
     },
     argv = require('yargs')
     .usage('Usage: $0 <command> [options]')
@@ -34,12 +45,7 @@ var DEFAULT_ARGS = {
         describe: 'The localization file\'s AWS bucket region',
         type: 'string'
       },
-      'path': {
-        alias: 'p',
-        default: process.cwd(),
-        describe: 'Local directory used to generate the config',
-        type: 'string'
-      },
+      'path': DEFAULT_ARGS.path,
       'basePath': {
         alias: 'b',
         default: 'languages',
@@ -57,11 +63,7 @@ var DEFAULT_ARGS = {
         describe: 'Save config to a file',
         type: 'string'
       },
-      'bucket': {
-        alias: 'bu',
-        describe: 'The AWS bucket',
-        type: 'string'
-      }
+      'bucket': DEFAULT_ARGS.bucket
     })
     .command('upload', 'Upload the config file to AWS', {
       'secret': DEFAULT_ARGS.secret,
@@ -70,11 +72,8 @@ var DEFAULT_ARGS = {
         describe: 'The generated ALM config file to upload',
         type: 'string'
       },
-      'bucket': {
-        alias: 'bu',
-        describe: 'The AWS bucket',
-        type: 'string'
-      }
+      'path': DEFAULT_ARGS.path,
+      'bucket': DEFAULT_ARGS.bucket
     })
     .command('version', 'Show the CLI version')
     .argv,
@@ -117,7 +116,7 @@ if (command === 'version') {
     }
   });
 } else if (command === 'upload') {
-  log.info('Uploading file: ', argv.f);
+  log.info('Reading file: ', argv.f);
   lib.readConfig(argv.f).then(function (localizationCfg) {
     if (!argv.s) {
       return Promise.reject('Define user secret to decrypt token!');
@@ -125,7 +124,11 @@ if (command === 'version') {
     if (!localizationCfg.token) {
       return Promise.reject('Token is missing from config file!');
     }
-    return lib.upload(localizationCfg, argv.s, argv.bu);
+    if (!argv.bu) {
+      return Promise.reject("AWS bucket is empty");
+    }
+    log.info('Uploading file: ', argv.f);
+    return lib.upload(localizationCfg, argv.s, argv.bu, argv.p);
   }, function (err) {
     if (err) {
       log.err('Failed to read config');

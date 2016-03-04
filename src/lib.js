@@ -1,20 +1,47 @@
-var argv = require('yargs').argv,
+var argv = require('yargs')
+    .options({
+      'debug': {
+        alias: 'd',
+        default: false,
+        type: 'boolean'
+      }
+    })
+    .argv,
     fs = require('fs'),
     request = require('request'),
     qs = require('querystring'),
     glob = require('glob'),
-    colors = require('colors');
+    colors = require('colors'),
+    log = {
+      _msg: function (args) {
+        return [].splice.call(args, 0).join(' ')
+      },
+      suc: function () {
+        console.error(colors.green(log._msg(arguments)));
+      },
+      err: function () {
+        console.error(colors.red(log._msg(arguments)));
+      },
+      info: function () {
+        console.log(log._msg(arguments));
+      },
+      debug: function () {
+        if (argv.debug) {
+          console.log(log._msg(arguments));
+        }
+      }
+    };
+
+exports.log = log;
 
 function getHost () {
   return argv.host || 'http://localhost:5000'
 }
 
-function upload (url, secret, token, body) {
+function putObject (url, params, body) {
   return new Promise(function (resolve, reject) {
-    request.post(url + '?' + qs.stringify({
-      'secret': secret,
-      'token': token,
-    }), {
+    url = url + '?' + qs.stringify(params);
+    request.post(url, {
       body: JSON.stringify(body)
     }, function (error, response, body) {
       if (error) {
@@ -32,20 +59,6 @@ function upload (url, secret, token, body) {
   });
 }
 
-var log = {
-  suc: function () {
-    console.error(colors.green([].splice.call(arguments, 0).join(' ')));
-  },
-  err: function () {
-    console.error(colors.red([].splice.call(arguments, 0).join(' ')));
-  },
-  info: function () {
-    var msg = Array.prototype.slice(arguments, 1).join(' ');
-    console.log(msg);
-  }
-};
-exports.log = log;
-
 exports.version = function () {
   fs.readFile(__dirname + '/../package.json', 'utf8', function (err, data) {
     if (err) {
@@ -57,6 +70,11 @@ exports.version = function () {
 
 exports.retrieveToken = function (tokenCfg) {
   return new Promise(function (resolve, reject) {
+    if (!tokenCfg) {
+      return reject({
+        error: 'Token config is empty'
+      });
+    }
     request(getHost() + '/auth/token?' + qs.stringify(tokenCfg), function (error, response, body) {
       if (error) {
         reject({
@@ -105,7 +123,10 @@ exports.gatherLocalizationBundles = function (localizationCfg) {
 
 exports.readLocalizationBundle = function (path) {
   return new Promise(function (resolve, reject) {
-    fs.readFile(path, {'enc': 'utf8'}, function (err, body) {
+    if (!path) {
+      reject('Path not defined');
+    }
+    fs.readFile(path, function (err, body) {
       if (err) {
         reject(err);
       } else {
@@ -127,8 +148,9 @@ exports.config = function (localizationCfg, tokenCfg) {
       }
       cfg.token = JSON.parse(resp.body).token;
       return cfg;
-    }).catch(function (o) {
-      log.err(o.error.message), o.response;
+    }, function (o) {
+      log.err(o.error.message)
+      log.err(o.response);
       cfg.token = 'request error';
       return cfg;
     });
@@ -144,7 +166,11 @@ exports.readConfig = function (path) {
       if (err) {
         reject(err);
       } else {
-        resolve(JSON.parse(data));
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          reject(e);
+        }
       }
     });
   });
@@ -163,45 +189,32 @@ exports.writeConfig = function (path, cfg) {
 };
 
 exports.uploadConfig = function (bucket, secret, localizationCfg) {
-  return new Promise(function (resolve, reject) {
-    request.post(getHost() + '/upload/' + bucket + '?' + qs.stringify({
-      'secret': secret,
-      'token': localizationCfg.token,
-    }), {
-      body: JSON.stringify(localizationCfg)
-    }, function (error, response, body) {
-      if (error) {
-        reject({
-          'error': error,
-          'response': response,
-        });
-      } else {
-        resolve({
-          'response': response,
-          'body': body,
-        });
-      }
-    });
-  });
+  return putObject([getHost(), 'upload', bucket].join('/'), {
+    'secret': secret,
+    'token': localizationCfg.token,
+  }, localizationCfg);
 };
 
-exports.uploadLocales = function (bucket, secret, localizationCfg) {
+exports.uploadLocales = function (bucket, secret, localizationCfg, workingPath) {
   var uploads = [];
   localizationCfg.languages.forEach(function (lang) {
-    uploads.concat(localizationCfg.bundles.map(function (bundle) {
-      return exports.readLocalizationBundle([lang, bundle].join('/')).then(function (body) {
-        return upload([getHost(), 'upload', bucket, lang, bundle].join('/'), secret, token, body);
+    uploads = uploads.concat(localizationCfg.bundles.map(function (bundle) {
+      return exports.readLocalizationBundle([workingPath, localizationCfg.basePath, lang, bundle + localizationCfg.fileExtension].join('/')).then(function (body) {
+        return putObject([getHost(), 'upload', bucket, lang, bundle + localizationCfg.fileExtension].join('/'), {
+          'basePath': localizationCfg.basePath,
+          'secret': secret,
+          'token': localizationCfg.token,
+        }, body);
       });
     }));
   });
-  return uploads;
+  return Promise.all(uploads);
 };
 
-exports.upload = function (localizationCfg, tokenCfg, bucket) {
-  return exports.config(localizationCfg, tokenCfg).then(function (localizationCfg) {
-    return Promise.all([
-      exports.uploadConfig(bucket, tokenCfg.secret, localizationCfg),
-      exports.uploadLocales(bucket, tokenCfg.secret, localizationCfg),
-    ]);
-  });
+exports.upload = function (localizationCfg, secret, bucket, workingPath) {
+  // return exports.uploadConfig(bucket, secret, localizationCfg);
+  return Promise.all([
+    exports.uploadConfig(bucket, secret, localizationCfg),
+    exports.uploadLocales(bucket, secret, localizationCfg, workingPath),
+  ]);
 };
