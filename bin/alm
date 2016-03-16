@@ -126,18 +126,18 @@ if (command === 'version') {
     if (!argv.bu) {
       return Promise.reject("AWS bucket is empty");
     }
-    log.info('Uploading file: ', argv.f);
-    return lib.upload(localizationCfg, argv.s, argv.bu, argv.p);
+    log.info('Uploading config:', argv.f);
+    return lib.upload(localizationCfg, argv.s, argv.bu, argv.p).then(function () {
+      log.info('Uploaded config:', argv.f);
+    }, function (err) {
+      log.info('Failed to upload config:', argv.f);
+      log.err(err);
+    });
   }, function (err) {
     if (err) {
       log.err('Failed to read config');
-      log.err(err);
     } else {
       log.err('Define config file to read!');
     }
-  }).then(function () {
-    log.info('Uploaded file', argv.f);
-  }, function (err) {
-    log.err(err);
   });
 }
