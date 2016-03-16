@@ -121,21 +121,6 @@ exports.gatherLocalizationBundles = function (localizationCfg) {
   });
 };
 
-exports.readLocalizationBundle = function (path) {
-  return new Promise(function (resolve, reject) {
-    if (!path) {
-      reject('Path not defined');
-    }
-    fs.readFile(path, function (err, body) {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(body);
-      }
-    });
-  });
-};
-
 exports.config = function (localizationCfg, tokenCfg) {
   return exports.gatherLocalizationBundles(localizationCfg).then(function (cfg) {
     if (!tokenCfg) {
@@ -157,7 +142,7 @@ exports.config = function (localizationCfg, tokenCfg) {
   });
 };
 
-exports.readConfig = function (path) {
+exports.read = function (path) {
   return new Promise(function (resolve, reject) {
     if (!path) {
       return reject();
@@ -199,7 +184,7 @@ exports.uploadLocales = function (bucket, secret, localizationCfg, workingPath) 
   var uploads = [];
   localizationCfg.languages.forEach(function (lang) {
     uploads = uploads.concat(localizationCfg.bundles.map(function (bundle) {
-      return exports.readLocalizationBundle([workingPath, localizationCfg.basePath, lang, bundle + localizationCfg.fileExtension].join('/')).then(function (body) {
+      return exports.read([workingPath, localizationCfg.basePath, lang, bundle + localizationCfg.fileExtension].join('/')).then(function (body) {
         return putObject([getHost(), 'upload', bucket, lang, bundle + localizationCfg.fileExtension].join('/'), {
           'basePath': localizationCfg.basePath,
           'secret': secret,

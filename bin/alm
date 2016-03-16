@@ -116,7 +116,7 @@ if (command === 'version') {
   });
 } else if (command === 'upload') {
   log.info('Reading file: ', argv.f);
-  lib.readConfig(argv.f).then(function (localizationCfg) {
+  lib.read(argv.f).then(function (localizationCfg) {
     if (!argv.s) {
       return Promise.reject('Define user secret to decrypt token!');
     }
